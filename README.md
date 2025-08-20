@@ -1,2 +1,2 @@
 # FY_qiqi
-MILP model for workshop scheduling
+MILP model for flexible job shop scheduling with automated guided vehicles
