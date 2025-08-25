@@ -1,6 +1,7 @@
 from gurobipy import Model, GRB, quicksum
 import sys
-from map import get_travel_time
+from map import get_travel_time, read_and_convert_txt
+
 
 def MIPModel(Data):
     n = Data['n']
@@ -9,9 +10,11 @@ def MIPModel(Data):
     A = Data['A']
     OJ = Data['OJ']
     operations_machines = Data['operations_machines']
-    operations_times = Data['operations_times']
+    # operations_times = Data['operations_times']*2
+    operations_times = {key: value * 3 for key, value in Data['operations_times'].items()}
     largeM = Data['largeM']
-    TT = get_travel_time()
+    # TT = read_and_convert_txt('./FJSSPinstances/Layout1.txt')
+    TT = get_travel_time()/2.0
 
     model = Model("FJSP_PPF")
     model.Params.OutputFlag = 0
@@ -84,48 +87,7 @@ def MIPModel(Data):
                     - largeM * (2 - x[j1, i1, k] - x[j2, i2, k]) - largeM * sq,
                     name=f"machine_order_backward_{j1}_{i1}_{j2}_{i2}_{k}"
                 )
-    # # 7. 同一机器上的工序顺序约束（使用顺序决策变量）
-    # for k in range(1, m + 1):  # 遍历所有机器
-    #     # 收集所有可能分配到机器k的工序
-    #     ops_on_k = [(j, i) for (j, i) in operations_machines if k in operations_machines[j, i]]
-    #
-    #     # 生成所有可能的工序对
-    #     for idx1 in range(len(ops_on_k)):
-    #         for idx2 in range(len(ops_on_k)):
-    #             j1, i1 = ops_on_k[idx1]
-    #             j2, i2 = ops_on_k[idx2]
-    #             if (j1, i1) != (j2, i2):
-    #                 # 创建顺序决策变量（1表示j1,i1在j2,i2之前）
-    #                 seq[j1, i1, j2, i2, k] = model.addVar(vtype=GRB.BINARY, name=f"seq_{j1}_{i1}_{j2}_{i2}_{k}")
-    #
-    #                 # 创建辅助变量表示两个操作都被分配到该机器
-    #                 both_assigned = model.addVar(vtype=GRB.BINARY, name=f"both_{j1}_{i1}_{j2}_{i2}_{k}")
-    #                 model.addConstr(both_assigned == x[j1, i1, k] * x[j2, i2, k],
-    #                                 name=f"both_assigned_{j1}_{i1}_{j2}_{i2}_{k}")
-    #
-    #                 # 顺序约束（当两个操作都被分配时生效）
-    #                 # j1,i1在j2,i2之前的情况
-    #                 model.addGenConstrIndicator(
-    #                     both_assigned, True,
-    #                     s[j2, i2] >= s[j1, i1] + operations_times[j1, i1, k] - largeM * (1 - seq[j1, i1, j2, i2, k]),
-    #                     name=f"seq_forward_{j1}_{i1}_{j2}_{i2}_{k}"
-    #                 )
-    #
-    #                 # j2,i2在j1,i1之前的情况
-    #                 model.addGenConstrIndicator(
-    #                     both_assigned, True,
-    #                     s[j1, i1] >= s[j2, i2] + operations_times[j2, i2, k] - largeM * seq[j1, i1, j2, i2, k],
-    #                     name=f"seq_backward_{j1}_{i1}_{j2, i2}_{k}"
-    #                 )
-    #     for idx1 in range(len(ops_on_k)):
-    #             for idx2 in range(len(ops_on_k)):
-    #                 j1, i1 = ops_on_k[idx1]
-    #                 j2, i2 = ops_on_k[idx2]
-    #                 if (j1, i1) != (j2, i2):
-    #                 # 确保顺序变量唯一性
-    #                     model.addConstr(seq[j1, i1, j2, i2, k] + seq[j2, i2, j1, i1, k] == 1,
-    #                                     name=f"seq_unique_{j1}_{i1}_{j2, i2}_{k}")
-    # # 2. 运输任务存在性 (η_j)
+    #todo eta[j,i]的值定义有误
     for j in J:
         # 首工序必须存在运输任务
         first_op = OJ[j][0]
@@ -351,6 +313,6 @@ def MIPModel(Data):
             )
     model.Params.MIPFocus = 2  # 让求解器专注于尽可能多地改进当前的最优解
 
-    model.Params.TimeLimit = 2000
+    model.Params.TimeLimit = 200000
     model.update()
     return model
